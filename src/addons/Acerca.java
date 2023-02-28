@@ -22,9 +22,9 @@ public class Acerca {
 	
 	public Acerca(Encriptador_Main main) {
 		desarrollador = "Alberto Gálvez / Syron Power";
-		version = "2.0 (Raices), recompilado en Java 8";
+		version = "2.1 (Flores), recompilado en Java 8";
 		correo = "galvezssr@gmail.com / syronpower@gmail.com";
-		cambios = "Mejoras en la Interfaz, optimización de código y registro habilitado";
+		cambios = "Incorporación de códigos de cifrado cargables externamente";
 		
 		this.main = main;
 	}

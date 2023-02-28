@@ -34,9 +34,9 @@ public class Ventana_Registro extends JFrame {
 	//////////////////////////////////////////
 
 	private static final long serialVersionUID = 1L;
-	
-	private Gestor_Ventanas gestor;
+
 	private DateTimeFormatter hora;
+	private Gestor_Ventanas gestor;
 	
 	private Gestor_Archivos gestorArchivos;
 	private FileNameExtensionFilter filtroLog;

@@ -5,7 +5,11 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.StringTokenizer;
 
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
@@ -31,16 +35,17 @@ public class Ventana_Principal extends JFrame {
 
 	private Gestor_Ventanas gestor;
 
-	private Gestor_Archivos gestorFicheros;
+	private Gestor_Archivos gestorArchivos;
 	private FileNameExtensionFilter filtroTxt;
 	private FileNameExtensionFilter filtroCfn;
 	private FileNameExtensionFilter filtroCfb;
+	private FileNameExtensionFilter filtroHash;
 
 	private JPanel panelPrincipal;
 	private JPanel panelAcciones;
 	private JPanel panelHash;
 	private JButton botonCargarHash;
-	private JButton botonEliminarHash;
+	private JButton botonGenerarHash;
 	private JButton botonCifrarNormal;
 	private JButton botonDescifrarNormal;
 	private JPanel panelOpciones;
@@ -56,14 +61,16 @@ public class Ventana_Principal extends JFrame {
 	public Ventana_Principal(Gestor_Ventanas gestor) {
 		this.gestor = gestor;
 
-		gestorFicheros = this.gestor.getGestorArchivos();
+		gestorArchivos = this.gestor.getGestorArchivos();
 		filtroTxt = new FileNameExtensionFilter("Fichero de texto", "txt");
 		filtroCfn = new FileNameExtensionFilter("Fichero de Cifrado Normal", "cfn");
 		filtroCfb = new FileNameExtensionFilter("Fichero de Cifrado Binario", "cfb");
+		filtroHash = new FileNameExtensionFilter("Fichero de codigo de cifrado", "hash");
 
-		gestorFicheros.addChoosableFileFilter(filtroTxt);
-		gestorFicheros.addChoosableFileFilter(filtroCfn);
-		gestorFicheros.addChoosableFileFilter(filtroCfb);
+		gestorArchivos.addChoosableFileFilter(filtroTxt);
+		gestorArchivos.addChoosableFileFilter(filtroCfn);
+		gestorArchivos.addChoosableFileFilter(filtroCfb);
+		gestorArchivos.addChoosableFileFilter(filtroHash);
 
 		/* Cierre en Cascada */
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -154,25 +161,31 @@ public class Ventana_Principal extends JFrame {
 			}
 		});
 
-		this.botonEliminarHash = new JButton("Eliminar Hash");
-		this.botonEliminarHash.addActionListener(new ActionListener() {
+		this.botonGenerarHash = new JButton("Generar Hash");
+		this.botonGenerarHash.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				eliminarHash();
+				generarHash();
 			}
 		});
 		GroupLayout gl_panelHash = new GroupLayout(this.panelHash);
-		gl_panelHash.setHorizontalGroup(gl_panelHash.createParallelGroup(Alignment.TRAILING)
-				.addGroup(gl_panelHash.createSequentialGroup().addContainerGap()
-						.addGroup(gl_panelHash.createParallelGroup(Alignment.TRAILING)
-								.addComponent(this.botonEliminarHash, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 95,
-										Short.MAX_VALUE)
-								.addComponent(this.botonCargarHash, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 95,
-										Short.MAX_VALUE))
-						.addContainerGap()));
-		gl_panelHash.setVerticalGroup(gl_panelHash.createParallelGroup(Alignment.LEADING)
-				.addGroup(gl_panelHash.createSequentialGroup().addGap(6).addComponent(this.botonCargarHash)
-						.addPreferredGap(ComponentPlacement.RELATED).addComponent(this.botonEliminarHash)
-						.addContainerGap(35, Short.MAX_VALUE)));
+		gl_panelHash.setHorizontalGroup(
+			gl_panelHash.createParallelGroup(Alignment.TRAILING)
+				.addGroup(gl_panelHash.createSequentialGroup()
+					.addContainerGap()
+					.addGroup(gl_panelHash.createParallelGroup(Alignment.TRAILING)
+						.addComponent(botonCargarHash, Alignment.LEADING, GroupLayout.DEFAULT_SIZE, 127, Short.MAX_VALUE)
+						.addComponent(botonGenerarHash, Alignment.LEADING, GroupLayout.PREFERRED_SIZE, 116, Short.MAX_VALUE))
+					.addContainerGap())
+		);
+		gl_panelHash.setVerticalGroup(
+			gl_panelHash.createParallelGroup(Alignment.LEADING)
+				.addGroup(gl_panelHash.createSequentialGroup()
+					.addGap(6)
+					.addComponent(botonCargarHash)
+					.addPreferredGap(ComponentPlacement.RELATED)
+					.addComponent(botonGenerarHash)
+					.addContainerGap(17, Short.MAX_VALUE))
+		);
 		this.panelHash.setLayout(gl_panelHash);
 
 		this.botonCifrarNormal = new JButton("Cifrado Normal");
@@ -255,30 +268,35 @@ public class Ventana_Principal extends JFrame {
 		File salida;
 		int valor;
 
-		gestorFicheros.setFileFilter(filtroTxt);
-		valor = gestorFicheros.showOpenDialog(null);
+		if (comprobarCodigosDeCifrado() == false) {
+			gestorArchivos.setFileFilter(filtroTxt);
+			valor = gestorArchivos.showOpenDialog(null);
 
-		if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".txt")) {
-			entrada = gestorFicheros.getSelectedFile();
+			if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".txt")) {
+				entrada = gestorArchivos.getSelectedFile();
 
-			gestorFicheros.setFileFilter(filtroCfn);
-			valor = gestorFicheros.showSaveDialog(null);
+				gestorArchivos.setFileFilter(filtroCfn);
+				valor = gestorArchivos.showSaveDialog(null);
 
-			if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".cfn")) {
-				salida = gestorFicheros.getSelectedFile();
+				if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".cfn")) {
+					salida = gestorArchivos.getSelectedFile();
 
-				gestor.getVentanaRegistro().escribirEnElRegistro("CIFRANDO ARCHIVO NORMAL:");
-				if (gestor.getMain().cifrarArchivoNormal(entrada, salida))
-					mensaje("Archivo cifrado con exito");
+					gestor.getVentanaRegistro().escribirEnElRegistro("CIFRANDO ARCHIVO NORMAL:");
+					if (gestor.getMain().cifrarArchivoNormal(entrada, salida))
+						mensaje("Archivo cifrado con exito");
 
-				else
-					error("Ha ocurrido un error inesperado al cifrar el archivo");
+					else
+						error("Ha ocurrido un error inesperado al cifrar el archivo");
+
+				} else if (valor != JFileChooser.CANCEL_OPTION)
+					error("El archivo debe tener una extension tipo cifrado normal (.cfn)");
 
 			} else if (valor != JFileChooser.CANCEL_OPTION)
-				error("El archivo debe tener una extension tipo cifrado normal (.cfn)");
-
-		} else if (valor != JFileChooser.CANCEL_OPTION)
-			error("El archivo debe tener una extension tipo fichero de texto (.txt)");
+				error("El archivo debe tener una extension tipo fichero de texto (.txt)");
+			
+		} else {
+			advertencia("Los codigos de cifrado no estan cargados");
+		}
 
 	}
 
@@ -287,30 +305,35 @@ public class Ventana_Principal extends JFrame {
 		File salida;
 		int valor;
 
-		gestorFicheros.setFileFilter(filtroCfn);
-		valor = gestorFicheros.showOpenDialog(null);
+		if (comprobarCodigosDeCifrado() == false) {
+			gestorArchivos.setFileFilter(filtroCfn);
+			valor = gestorArchivos.showOpenDialog(null);
 
-		if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".cfn")) {
-			entrada = gestorFicheros.getSelectedFile();
+			if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".cfn")) {
+				entrada = gestorArchivos.getSelectedFile();
 
-			gestorFicheros.setFileFilter(filtroTxt);
-			valor = gestorFicheros.showSaveDialog(null);
+				gestorArchivos.setFileFilter(filtroTxt);
+				valor = gestorArchivos.showSaveDialog(null);
 
-			if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".txt")) {
-				salida = gestorFicheros.getSelectedFile();
+				if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".txt")) {
+					salida = gestorArchivos.getSelectedFile();
 
-				gestor.getVentanaRegistro().escribirEnElRegistro("DESCIFRANDO ARCHIVO NORMAL:");
-				if (gestor.getMain().descifrarArchivoNormal(entrada, salida))
-					mensaje("Archivo descifrado con exito");
+					gestor.getVentanaRegistro().escribirEnElRegistro("DESCIFRANDO ARCHIVO NORMAL:");
+					if (gestor.getMain().descifrarArchivoNormal(entrada, salida))
+						mensaje("Archivo descifrado con exito");
 
-				else
-					error("Ha ocurrido un error inesperado al descifrar el archivo");
+					else
+						error("Ha ocurrido un error inesperado al descifrar el archivo");
+
+				} else if (valor != JFileChooser.CANCEL_OPTION)
+					error("El archivo debe tener una extension tipo fichero de texto (.txt)");
 
 			} else if (valor != JFileChooser.CANCEL_OPTION)
-				error("El archivo debe tener una extension tipo fichero de texto (.txt)");
-
-		} else if (valor != JFileChooser.CANCEL_OPTION)
-			error("El archivo debe tener una extension tipo cifrado normal (.cfn)");
+				error("El archivo debe tener una extension tipo cifrado normal (.cfn)");
+			
+		} else {
+			advertencia("Los codigos de cifrado no estan cargados");
+		}
 	}
 
 	private void cifrarArchivoEnBinario() {
@@ -318,30 +341,35 @@ public class Ventana_Principal extends JFrame {
 		File salida;
 		int valor;
 
-		gestorFicheros.setFileFilter(filtroTxt);
-		valor = gestorFicheros.showOpenDialog(null);
+		if (comprobarCodigosDeCifrado() == false) {
+			gestorArchivos.setFileFilter(filtroTxt);
+			valor = gestorArchivos.showOpenDialog(null);
 
-		if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".txt")) {
-			entrada = gestorFicheros.getSelectedFile();
+			if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".txt")) {
+				entrada = gestorArchivos.getSelectedFile();
 
-			gestorFicheros.setFileFilter(filtroCfb);
-			valor = gestorFicheros.showOpenDialog(null);
+				gestorArchivos.setFileFilter(filtroCfb);
+				valor = gestorArchivos.showOpenDialog(null);
 
-			if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".cfb")) {
-				salida = gestorFicheros.getSelectedFile();
+				if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".cfb")) {
+					salida = gestorArchivos.getSelectedFile();
 
-				gestor.getVentanaRegistro().escribirEnElRegistro("CIFRANDO ARCHIVO BINARIO:");
-				if (gestor.getMain().cifrarArchivoEnBinario(entrada, salida))
-					mensaje("Archivo cifrado con exito");
+					gestor.getVentanaRegistro().escribirEnElRegistro("CIFRANDO ARCHIVO BINARIO:");
+					if (gestor.getMain().cifrarArchivoEnBinario(entrada, salida))
+						mensaje("Archivo cifrado con exito");
 
-				else
-					error("Ha ocurrido un error inesperado al cifrar el archivo");
+					else
+						error("Ha ocurrido un error inesperado al cifrar el archivo");
+
+				} else if (valor != JFileChooser.CANCEL_OPTION)
+					error("El archivo debe tener una extension tipo cifrado normal (.cfb)");
 
 			} else if (valor != JFileChooser.CANCEL_OPTION)
-				error("El archivo debe tener una extension tipo cifrado normal (.cfb)");
-
-		} else if (valor != JFileChooser.CANCEL_OPTION)
-			error("El archivo debe tener una extension tipo fichero de texto (.txt)");
+				error("El archivo debe tener una extension tipo fichero de texto (.txt)");
+			
+		} else {
+			advertencia("Los codigos de cifrado no estan cargados");
+		}
 	}
 
 	private void descifrarArchivoEnBinario() {
@@ -349,38 +377,143 @@ public class Ventana_Principal extends JFrame {
 		File salida;
 		int valor;
 
-		gestorFicheros.setFileFilter(filtroCfb);
-		valor = gestorFicheros.showOpenDialog(null);
+		if (comprobarCodigosDeCifrado() == false) {
+			gestorArchivos.setFileFilter(filtroCfb);
+			valor = gestorArchivos.showOpenDialog(null);
 
-		if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".cfb")) {
-			entrada = gestorFicheros.getSelectedFile();
+			if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".cfb")) {
+				entrada = gestorArchivos.getSelectedFile();
 
-			gestorFicheros.setFileFilter(filtroTxt);
-			valor = gestorFicheros.showOpenDialog(null);
+				gestorArchivos.setFileFilter(filtroTxt);
+				valor = gestorArchivos.showOpenDialog(null);
 
-			if (valor == JFileChooser.APPROVE_OPTION && gestorFicheros.getSelectedFile().getName().endsWith(".txt")) {
-				salida = gestorFicheros.getSelectedFile();
+				if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".txt")) {
+					salida = gestorArchivos.getSelectedFile();
 
-				gestor.getVentanaRegistro().escribirEnElRegistro("DESCRIFRANDO ARCHIVO BINARIO:");
-				if (gestor.getMain().descifrarArchivoEnBinario(entrada, salida))
-					mensaje("Archivo descifrado con exito");
+					gestor.getVentanaRegistro().escribirEnElRegistro("DESCRIFRANDO ARCHIVO BINARIO:");
+					if (gestor.getMain().descifrarArchivoEnBinario(entrada, salida))
+						mensaje("Archivo descifrado con exito");
 
-				else
-					error("Ha ocurrido un error inesperado al descifrar el archivo");
+					else
+						error("Ha ocurrido un error inesperado al descifrar el archivo");
+
+				} else if (valor != JFileChooser.CANCEL_OPTION)
+					error("El archivo debe tener una extension tipo cifrado normal (.txt)");
 
 			} else if (valor != JFileChooser.CANCEL_OPTION)
-				error("El archivo debe tener una extension tipo cifrado normal (.txt)");
-
-		} else if (valor != JFileChooser.CANCEL_OPTION)
-			error("El archivo debe tener una extension tipo fichero de texto (.cfb)");
+				error("El archivo debe tener una extension tipo fichero de texto (.cfb)");
+			
+		} else {
+			advertencia("Los codigos de cifrado no estan cargados");
+		}
 	}
 
 	private void cargarHash() {
-		advertencia("Disponible en la version 2.1 (Flores)");
+		StringTokenizer palabras;
+		ArrayList<Character> lista = new ArrayList<>();
+		String palabra;
+		String linea;
+		Character caracter = null;
+		boolean hayFallo = false;
+		
+		File entrada;
+		int valor;
+		
+		gestorArchivos.setFileFilter(filtroHash);
+		valor = gestorArchivos.showOpenDialog(null);
+		
+		if (valor == JFileChooser.APPROVE_OPTION && gestorArchivos.getSelectedFile().getName().endsWith(".hash")) {
+			entrada = gestorArchivos.getSelectedFile();
+			
+			try (BufferedReader lectura = new BufferedReader(new FileReader(entrada))) {
+				
+				/* Lectura del no cifrado */
+				linea = lectura.readLine();
+				palabras = new StringTokenizer(linea, "^");
+
+				while (palabras.hasMoreTokens()) {
+					palabra = palabras.nextToken();
+
+					if (palabra.charAt(0) == '\\') {
+						if (palabra.charAt(1) == 'n') {
+							caracter = '\n';
+
+						} else if (palabra.charAt(1) == '\'') {
+							caracter = '\'';
+
+						} else if (palabra.charAt(1) == '\"') {
+							caracter = '\"';
+
+						}
+						
+					} else {
+						caracter = palabra.charAt(0);
+					}
+
+					lista.add(caracter);
+				}
+
+				/* COMPRUEBO SI HAY FALLO AL INSERTAR EL ARRAY DEL ALFABETO */
+				if (gestor.getMain().getEncriptador().getHash().setAlfabeto(lista)) {
+					lista.clear();
+					
+					/* Lectura del cifrado */
+					linea = lectura.readLine();
+					palabras = new StringTokenizer(linea, "^");
+
+					while (palabras.hasMoreTokens()) {
+						palabra = palabras.nextToken();
+
+						if (palabra.charAt(0) == '\\') {
+							if (palabra.charAt(1) == 'n') {
+								caracter = '\n';
+
+							} else if (palabra.charAt(1) == '\'') {
+								caracter = '\'';
+
+							} else if (palabra.charAt(1) == '\"') {
+								caracter = '\"';
+
+							}
+							
+						} else {
+							caracter = palabra.charAt(0);
+						}
+
+						lista.add(caracter);
+					}
+					
+					/* COMPRUEBO SI HAY FALLO AL INSERTAR EL ARRAY DEL CIFRADO */
+					if (gestor.getMain().getEncriptador().getHash().setCifrado(lista) == false)
+						hayFallo = true;
+					
+				} else {
+					hayFallo = true;
+				}
+
+				
+			} catch (Exception e) {
+				gestor.getVentanaRegistro().escribirEnElRegistro(e.getMessage());
+				hayFallo = true;
+			}
+			
+			if (hayFallo) {
+				gestor.getVentanaRegistro().escribirEnElRegistro("Se ha producido un error al escribir los codigos de cifrado");
+				error("ERROR: No se han podido escribir los codigos de cifrado");
+				
+				gestor.getMain().getEncriptador().getHash().limpiarListas();
+			} else {
+				gestor.getVentanaRegistro().escribirEnElRegistro("Codigos de cifrado cargados correctamente");
+				mensaje("Codigos de cifrado cargados correctamente");
+			}
+			
+		} else if (valor != JFileChooser.CANCEL_OPTION) {
+			error("El archivo debe tener una extension de tipo HASH (.hash)");
+		}
 	}
 
-	private void eliminarHash() {
-		advertencia("Disponible en la version 2.1 (Flores)");
+	private void generarHash() {
+		advertencia("Disponible en la version 3.0 (Frutos) [Versión Final]");
 	}
 
 	private void mostrarRegistro() {
@@ -389,6 +522,10 @@ public class Ventana_Principal extends JFrame {
 
 	private void mostrarAcerca() {
 		gestor.getVentanaAcerca().setVisible(true);
+	}
+	
+	private boolean comprobarCodigosDeCifrado() {
+		return gestor.getMain().getEncriptador().getHash().estanVacias();		
 	}
 
 	//////////////////////////////////////////
